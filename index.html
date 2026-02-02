@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TKA 1977 - Ujian Mandiri</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1; --bg: #f8fafc; --text: #0f172a; --card: #ffffff;
+        }
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: var(--bg); color: var(--text); margin: 0; display: flex; justify-content: center; min-height: 100vh; }
+        
+        .app-card {
+            width: 100%; max-width: 480px; background: var(--card); min-height: 100vh;
+            display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.03);
+        }
+
+        /* --- SCREEN MANAGEMENT --- */
+        .screen { display: none; padding: 30px; animation: fadeIn 0.4s ease-out; }
+        .active { display: flex; flex-direction: column; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- UI ELEMENTS --- */
+        h1 { font-weight: 800; font-size: 28px; margin-bottom: 10px; color: var(--primary); }
+        .input-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #64748b; }
+        input, select {
+            width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px;
+            font-size: 16px; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary); background: #f5f7ff; }
+
+        .btn-main {
+            background: var(--primary); color: white; border: none; padding: 18px;
+            border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3); transition: 0.3s;
+        }
+        .btn-main:active { transform: scale(0.95); }
+
+        /* --- QUIZ UI --- */
+        .timer-bar { height: 6px; background: #e2e8f0; position: sticky; top: 0; }
+        #progress { height: 100%; background: var(--primary); width: 0%; transition: 0.4s; }
+        .timer-txt { color: #ef4444; font-weight: 700; text-align: center; margin: 15px 0; }
+        .q-text { font-size: 18px; font-weight: 700; line-height: 1.5; margin-bottom: 20px; }
+        .opt-btn {
+            background: #f1f5f9; border: 2px solid transparent; padding: 16px;
+            border-radius: 14px; text-align: left; margin-bottom: 12px; cursor: pointer;
+            font-size: 15px; transition: 0.2s;
+        }
+        .opt-btn.selected { background: #eef2ff; border-color: var(--primary); color: var(--primary); font-weight: 600; }
+
+        /* --- RESULT UI --- */
+        .score-box { background: #f5f7ff; padding: 40px; border-radius: 30px; text-align: center; margin-bottom: 20px; }
+        .score-num { font-size: 64px; font-weight: 800; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <div id="screen-login" class="screen active">
+        <div style="text-align: center; margin-bottom: 40px;">
+            <div style="font-size: 50px;">🎯</div>
+            <h1>TKA 1977</h1>
+            <p style="color: #64748b;">Silakan isi data diri Anda</p>
+        </div>
+        <div class="input-group">
+            <label>Nama Lengkap</label>
+            <input type="text" id="input-nama" placeholder="Contoh: Budi Santoso">
+        </div>
+        <div class="input-group">
+            <label>Kelas</label>
+            <select id="input-kelas">
+                <option value="9A">Kelas 9A</option>
+                <option value="9B">Kelas 9B</option>
+                <option value="9C">Kelas 9C</option>
+            </select>
+        </div>
+        <button class="btn-main" onclick="toMapel()">Masuk ke Ujian</button>
+    </div>
+
+    <div id="screen-mapel" class="screen">
+        <h1>Pilih Pelajaran</h1>
+        <p style="color: #64748b; margin-bottom: 30px;">Waktu: 40 Menit per Mapel</p>
+        <button class="btn-main" style="margin-bottom: 15px; background: #3b82f6;" onclick="startQuiz('B. INDONESIA')">📖 B. INDONESIA</button>
+        <button class="btn-main" style="background: #8b5cf6;" onclick="startQuiz('MATEMATIKA')">🔢 MATEMATIKA</button>
+    </div>
+
+    <div id="screen-quiz" class="screen" style="padding: 0;">
+        <div class="timer-bar"><div id="progress"></div></div>
+        <div class="timer-txt">⏳ Sisa Waktu: <span id="timer-display">40:00</span></div>
+        <div style="padding: 20px;" id="quiz-content">
+            </div>
+        <div style="padding: 20px; display: flex; gap: 10px; margin-top: auto;">
+            <button class="btn-main" style="background: #94a3b8;" onclick="nav(-1)">Kembali</button>
+            <button class="btn-main" id="btn-next" onclick="nav(1)">Lanjut</button>
+            <button class="btn-main" id="btn-done" style="display:none; background: #10b981;" onclick="showFinal()">Selesai</button>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen" style="text-align: center;">
+        <h1>Hasil Ujian</h1>
+        <p id="res-nama" style="font-weight: 600;"></p>
+        <div class="score-box">
+            <div style="font-size: 14px; color: #64748b; margin-bottom: 10px;">SKOR ANDA</div>
+            <div class="score-num" id="res-score">0</div>
+        </div>
+        <div id="res-detail" style="margin-bottom: 30px; line-height: 1.8;"></div>
+        <button class="btn-main" onclick="location.reload()">Kembali ke Awal</button>
+    </div>
+</div>
+
+<script>
+    let userData = { nama: '', kelas: '', mapel: '' };
+    let curIdx = 0;
+    let timer;
+    let timeLeft = 40 * 60;
+    let answers = {};
+    const totalSoal = 30;
+    const dbSoal = [];
+
+    // Generate Soal (30 Bindo + 30 MTK)
+    for(let i=1; i<=30; i++) {
+        dbSoal.push({
+            type: 'B. INDONESIA',
+            q: `[B. INDO NO ${i}] Indonesia kaya akan budaya. Kita harus bangga menggunakan produk lokal agar ekonomi rakyat meningkat. Apa pesan utamanya?`,
+            opts: ["Bangga produk lokal", "Ekonomi lesu", "Budaya luntur", "Produk luar hebat"],
+            key: 0
+        });
+        dbSoal.push({
+            type: 'MATEMATIKA',
+            q: `[MTK NO ${i}] Jika harga buku Rp ${i}0.000 dan diskon 10%, berapa harga akhirnya?`,
+            opts: [`Rp ${(i*10000)*0.9}`, `Rp ${i*10000}`, "Rp 5.000", "Rp 1.000"],
+            key: 0
+        });
+    }
+
+    function switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function toMapel() {
+        const n = document.getElementById('input-nama').value;
+        if(!n) return alert("Isi nama dulu!");
+        userData.nama = n;
+        userData.kelas = document.getElementById('input-kelas').value;
+        switchScreen('screen-mapel');
+    }
+
+    function startQuiz(m) {
+        userData.mapel = m;
+        curIdx = 0;
+        answers = {};
+        switchScreen('screen-quiz');
+        renderSoal();
+        startTimer();
+    }
+
+    function renderSoal() {
+        const list = dbSoal.filter(s => s.type === userData.mapel);
+        const s = list[curIdx];
+        const prog = ((curIdx + 1) / totalSoal) * 100;
+        document.getElementById('progress').style.width = prog + "%";
+
+        document.getElementById('quiz-content').innerHTML = `
+            <div style="font-weight:700; color:var(--primary); margin-bottom:10px;">${userData.mapel} #${curIdx+1}</div>
+            <div class="q-text">${s.q}</div>
+            ${s.opts.map((o, i) => `
+                <div class="opt-btn ${answers[curIdx] === i ? 'selected' : ''}" onclick="pick(${i})">
+                    <b>${String.fromCharCode(65+i)}.</b> ${o}
+                </div>
+            `).join('')}
+        `;
+
+        document.getElementById('btn-next').style.display = curIdx === totalSoal - 1 ? 'none' : 'block';
+        document.getElementById('btn-done').style.display = curIdx === totalSoal - 1 ? 'block' : 'none';
+    }
+
+    function pick(i) {
+        answers[curIdx] = i;
+        renderSoal();
+    }
+
+    function nav(step) {
+        curIdx += step;
+        if(curIdx < 0) curIdx = 0;
+        renderSoal();
+    }
+
+    function startTimer() {
+        timer = setInterval(() => {
+            timeLeft--;
+            let m = Math.floor(timeLeft/60), s = timeLeft%60;
+            document.getElementById('timer-display').innerText = `${m}:${s<10?'0'+s:s}`;
+            if(timeLeft <= 0) { clearInterval(timer); alert("Waktu Habis!"); location.reload(); }
+        }, 1000);
+    }
+
+    function showFinal() {
+        clearInterval(timer);
+        const list = dbSoal.filter(s => s.type === userData.mapel);
+        let benar = 0;
+        list.forEach((s, i) => { if(answers[i] === s.key) benar++; });
+        
+        switchScreen('screen-result');
+        document.getElementById('res-nama').innerText = `${userData.nama} - ${userData.kelas}`;
+        document.getElementById('res-score').innerText = Math.round((benar/totalSoal)*100);
+        document.getElementById('res-detail').innerHTML = `
+            <b>Pelajaran:</b> ${userData.mapel}<br>
+            <b>Benar:</b> ${benar} | <b>Salah:</b> ${totalSoal - benar}
+        `;
+    }
+</script>
+</body>
+</html>
